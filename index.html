@@ -17,8 +17,8 @@
           <p class="eyebrow">Local Election Turnout</p>
           <h1>한국 지자체별 지방선거 투표율 Dashboard</h1>
           <p class="hero-text">
-            중앙선관위와 공공데이터포털 공식 원본을 바탕으로 시군구 단위 지방선거 투표율을 비교합니다.
-            필터링, 시계열 확인, CSV/JSON 다운로드를 한 화면에서 처리할 수 있습니다.
+            중앙선관위와 공공데이터포털 공식 원본 기반 시군구 단위 지방선거 투표율 비교 대시보드.
+            필터링, 시계열 확인, CSV/JSON 다운로드의 단일 화면 제공 구조.
           </p>
           <div class="hero-actions">
             <a class="button primary" href="./data/local-election-turnout-municipal.csv" download>CSV 다운로드</a>
@@ -71,12 +71,12 @@
         <section class="panel notes wide">
           <div class="panel-head">
             <h2>해석 메모</h2>
-            <p>초기 회차를 볼 때 함께 확인하면 좋은 기준</p>
+            <p>초기 회차 확인 시 참고 기준</p>
           </div>
           <div class="note-grid">
             <article class="note-card">
               <strong>2002 데이터 포함</strong>
-              <p>제3회 지방선거는 중앙선관위 레거시 광역 `xls` 원본에서 시군구 `합계` 행을 추출해 정규화했습니다.</p>
+              <p>중앙선관위 레거시 광역 `xls` 원본의 시군구 `합계` 행 추출 및 정규화 기반 자료.</p>
             </article>
             <article class="note-card">
               <strong>2002 데이터 주의사항</strong>
@@ -84,7 +84,7 @@
             </article>
             <article class="note-card">
               <strong>지자체 수 차이</strong>
-              <p>2002년은 243개 시군구가 잡히며, 이후 분구·승격된 지역 때문에 2006년 이후 회차와 개수가 다릅니다.</p>
+              <p>2002년 243개 시군구 기준 자료이며, 이후 분구·승격 지역 반영에 따른 2006년 이후 회차와의 개수 차이 존재 상태.</p>
             </article>
             <article class="note-card">
               <strong>2006 데이터 주의사항</strong>
@@ -92,7 +92,7 @@
             </article>
             <article class="note-card">
               <strong>대표적인 변화</strong>
-              <p>고양시 일산구, 안산시, 용인시 같은 지역은 이후 선거에서 분구되어 시계열 비교 시 같은 이름이 1:1로 이어지지 않을 수 있습니다.</p>
+              <p>고양시 일산구, 안산시, 용인시 등의 이후 분구에 따른 시계열 비교상 동일 명칭의 비일대일 대응 가능성.</p>
             </article>
           </div>
         </section>
@@ -127,7 +127,7 @@
         <section class="panel chart-panel wide">
           <div class="panel-head">
             <h2>선택 지자체 시계열</h2>
-            <p>지자체를 고르면 회차별 변화가 강조됩니다.</p>
+            <p>선택 지자체 기준 회차별 변화 강조 구성</p>
           </div>
           <div id="municipality-chart" class="chart"></div>
         </section>
@@ -135,7 +135,7 @@
         <section class="panel chart-panel wide">
           <div class="panel-head">
             <h2>회차별 지자체 비교</h2>
-            <p>현재 선택 조건에 맞는 지자체 투표율을 높은 순으로 보여줍니다.</p>
+            <p>현재 선택 조건 기준 지자체 투표율의 높은 순 배열</p>
           </div>
           <div id="ranking-chart" class="chart tall"></div>
         </section>
@@ -143,7 +143,7 @@
         <section class="panel table-panel wide">
           <div class="panel-head">
             <h2>상세 테이블</h2>
-            <p>열 제목을 기준으로 다운로드 데이터와 같은 내용을 확인할 수 있습니다.</p>
+            <p>다운로드 데이터와 동일한 내용의 열 기준 확인 영역</p>
           </div>
           <div class="table-wrap">
             <table>
@@ -168,7 +168,7 @@
         <section class="panel sources-panel wide">
           <div class="panel-head">
             <h2>원천</h2>
-            <p>중앙선관위 자료실과 공공데이터포털 원문 링크</p>
+            <p>중앙선관위 자료실 및 공공데이터포털 원문 링크 목록</p>
           </div>
           <ul id="source-list" class="source-list"></ul>
         </section>

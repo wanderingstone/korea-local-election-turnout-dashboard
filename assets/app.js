@@ -155,7 +155,7 @@ function renderMunicipalityChart(records) {
 
   municipalityChart.setOption({
     title: {
-      text: municipalityKey || "선택 가능한 지자체가 없습니다.",
+      text: municipalityKey || "선택 가능 지자체 부재 상태",
       left: 0,
       textStyle: { fontSize: 16, fontWeight: 700, color: "#182126" },
     },
@@ -306,5 +306,5 @@ async function init() {
 init().catch((error) => {
   console.error(error);
   document.body.innerHTML =
-    '<div style="padding:24px;font-family:sans-serif">데이터를 불러오지 못했습니다. 정적 파일 경로와 JSON 파일을 확인해 주세요.</div>';
+    '<div style="padding:24px;font-family:sans-serif">데이터 로딩 실패 상태. 정적 파일 경로 및 JSON 파일 확인 필요 상태.</div>';
 });
