@@ -4,6 +4,7 @@ import contextlib
 import csv
 import io
 import json
+import os
 import pathlib
 import re
 import sys
@@ -255,6 +256,125 @@ def office_to_province(office_title: str) -> str:
     return clean
 
 
+def decode_legacy_text(value: object) -> str:
+    text = str(value).strip()
+    if not text:
+        return ""
+    try:
+        return text.encode("latin1").decode("cp949").strip()
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
+
+
+def decode_legacy_zip_name(name: str) -> str:
+    try:
+        return name.encode("cp437").decode("cp949")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return name
+
+
+def normalize_2002_province(name: str) -> str:
+    mapping = {
+        "서울": "서울특별시",
+        "부산": "부산광역시",
+        "대구": "대구광역시",
+        "인천": "인천광역시",
+        "광주": "광주광역시",
+        "대전": "대전광역시",
+        "울산": "울산광역시",
+        "경기": "경기도",
+        "강원": "강원도",
+        "충북": "충청북도",
+        "충남": "충청남도",
+        "전북": "전라북도",
+        "전남": "전라남도",
+        "경북": "경상북도",
+        "경남": "경상남도",
+        "제주": "제주도",
+    }
+    return mapping.get(name.strip(), name.strip())
+
+
+def normalize_2006_municipality(name: str) -> str:
+    clean = name.strip()
+    if clean.endswith("시장"):
+        return clean[:-2] + "시"
+    if clean.endswith("군수"):
+        return clean[:-2] + "군"
+    clean = re.sub(r"^(.+?시)(.+구)$", r"\1 \2", clean)
+    return re.sub(r"\s+", " ", clean).strip()
+
+
+def normalize_2002_municipality(name: str) -> str:
+    clean = decode_legacy_text(name)
+    clean = re.sub(r"\([^)]*\)$", "", clean).strip()
+    return normalize_2006_municipality(clean)
+
+
+def parse_2002_round() -> list[TurnoutRecord]:
+    ensure_nec_archive()
+    records_by_key: dict[tuple[str, str], TurnoutRecord] = {}
+
+    for path in EXTRACT_DIR.rglob("*.zip"):
+        with zipfile.ZipFile(path) as archive:
+            members = [
+                (member_name, decode_legacy_zip_name(member_name))
+                for member_name in archive.namelist()
+                if member_name.lower().endswith(".xls")
+            ]
+
+            if len(members) != 16:
+                continue
+
+            for member_name, decoded_name in members:
+                province = normalize_2002_province(pathlib.Path(decoded_name).stem)
+                with archive.open(member_name) as member_stream:
+                    workbook = xlrd.open_workbook(
+                        file_contents=member_stream.read(),
+                        on_demand=True,
+                        logfile=open(os.devnull, "w"),
+                    )
+                sheet = workbook.sheet_by_index(0)
+                header_name = decode_legacy_text(sheet.cell_value(0, 0))
+                subheader_name = decode_legacy_text(sheet.cell_value(0, 1))
+                if header_name != "위원회명" or subheader_name != "투표구명":
+                    workbook.release_resources()
+                    continue
+
+                header_row = [decode_legacy_text(cell) for cell in sheet.row_values(2)]
+                valid_total_idx = next((idx for idx, value in enumerate(header_row) if value == "계"), None)
+
+                for row_idx in range(3, sheet.nrows):
+                    municipality_raw = decode_legacy_text(sheet.cell_value(row_idx, 0))
+                    label = decode_legacy_text(sheet.cell_value(row_idx, 1))
+                    electorate = parse_int(sheet.cell_value(row_idx, 2))
+                    votes = parse_int(sheet.cell_value(row_idx, 3))
+                    if not municipality_raw or label != "합계" or not electorate or not votes:
+                        continue
+
+                    municipality = normalize_2002_municipality(municipality_raw)
+                    valid_votes = parse_int(sheet.cell_value(row_idx, valid_total_idx)) if valid_total_idx is not None else 0
+                    record = TurnoutRecord(
+                        election_round=3,
+                        election_label="제3회 전국동시지방선거",
+                        election_date="2002-06-13",
+                        province=province,
+                        municipality=municipality,
+                        municipality_key=f"{province} {municipality}",
+                        electorate=electorate,
+                        votes=votes,
+                        invalid_votes=max(votes - valid_votes, 0) if valid_votes else 0,
+                        abstentions=max(electorate - votes, 0),
+                    )
+                    records_by_key[(province, municipality)] = record
+
+                workbook.release_resources()
+
+    records = list(records_by_key.values())
+    records.sort(key=lambda item: (item.province, item.municipality))
+    return records
+
+
 def parse_2006_round() -> list[TurnoutRecord]:
     ensure_nec_archive()
     records: list[TurnoutRecord] = []
@@ -266,8 +386,7 @@ def parse_2006_round() -> list[TurnoutRecord]:
     ]
 
     for path in files:
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            workbook = xlrd.open_workbook(str(path), on_demand=True)
+        workbook = xlrd.open_workbook(str(path), on_demand=True, logfile=open(os.devnull, "w"))
         sheet = workbook.sheet_by_index(0)
         if sheet.nrows < 8 or sheet.ncols < 17:
             workbook.release_resources()
@@ -278,7 +397,7 @@ def parse_2006_round() -> list[TurnoutRecord]:
         for cell in sheet.row_values(1):
             cell_text = str(cell).strip()
             if cell_text.startswith("[") and cell_text.endswith("]") and cell_text != office:
-                municipality = cell_text.strip("[]")
+                municipality = normalize_2006_municipality(cell_text.strip("[]"))
         summary_label = str(sheet.cell_value(6, 1)).strip()
         if not office or not municipality or summary_label != "합계":
             workbook.release_resources()
@@ -310,14 +429,61 @@ def parse_2006_round() -> list[TurnoutRecord]:
         )
         workbook.release_resources()
 
-    deduped: dict[tuple[int, str], TurnoutRecord] = {}
-    for record in records:
-        deduped[(record.election_round, record.municipality_key)] = record
-    return list(deduped.values())
+    records.sort(key=lambda item: (item.province, item.municipality))
+    return records
+
+
+def parse_2006_round_stable() -> list[TurnoutRecord]:
+    ensure_nec_archive()
+    records: list[TurnoutRecord] = []
+    files = [
+        path
+        for path in EXTRACT_DIR.rglob("*.xls")
+        if "4" in top_level_name(path, EXTRACT_DIR) and second_level_name(path, EXTRACT_DIR).startswith("1_")
+    ]
+
+    for path in files:
+        workbook = xlrd.open_workbook(str(path), on_demand=True, logfile=open(os.devnull, "w"))
+        sheet = workbook.sheet_by_index(0)
+        office = str(sheet.cell_value(1, 1)).strip()
+        municipality = ""
+        for cell in sheet.row_values(1):
+            cell_text = str(cell).strip()
+            if cell_text.startswith("[") and cell_text.endswith("]") and cell_text != office:
+                municipality = normalize_2006_municipality(cell_text.strip("[]"))
+
+        summary_label = str(sheet.cell_value(6, 1)).strip()
+        electorate = parse_int(sheet.cell_value(6, 2))
+        votes = parse_int(sheet.cell_value(6, 4))
+        if office and municipality and summary_label == "합계" and electorate and votes:
+            province = office_to_province(office)
+            header_row = [str(cell).strip() for cell in sheet.row_values(3)]
+            invalid_idx = next((idx for idx, value in enumerate(header_row) if "무효" in value), 15)
+            abstention_idx = next((idx for idx, value in enumerate(header_row) if "기권" in value), 16)
+            records.append(
+                TurnoutRecord(
+                    election_round=4,
+                    election_label="제4회 전국동시지방선거",
+                    election_date="2006-05-31",
+                    province=province,
+                    municipality=municipality,
+                    municipality_key=f"{province} {municipality}",
+                    electorate=electorate,
+                    votes=votes,
+                    invalid_votes=parse_int(sheet.cell_value(6, invalid_idx)),
+                    abstentions=parse_int(sheet.cell_value(6, abstention_idx)),
+                )
+            )
+        workbook.release_resources()
+
+    records.sort(key=lambda item: (item.province, item.municipality))
+    return records
 
 
 def build_records() -> list[TurnoutRecord]:
     records: list[TurnoutRecord] = []
+    records.extend(parse_2002_round())
+    records.extend(parse_2006_round_stable())
     for meta in DATA_GO_FILES:
         records.extend(parse_xlsx_round(meta))
     records.sort(key=lambda item: (item.election_date, item.province, item.municipality))
