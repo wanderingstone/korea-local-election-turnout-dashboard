@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>지자체별 지방선거 투표율 Dashboard</title>
+    <meta
+      name="description"
+      content="한국 지자체별 지방선거 투표율을 시군구 단위로 비교하고 CSV/JSON으로 내려받을 수 있는 정적 대시보드"
+    />
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Local Election Turnout</p>
+          <h1>한국 지자체별 지방선거 투표율 Dashboard</h1>
+          <p class="hero-text">
+            중앙선관위와 공공데이터포털 공식 원본을 바탕으로 시군구 단위 지방선거 투표율을 비교합니다.
+            필터링, 시계열 확인, CSV/JSON 다운로드를 한 화면에서 처리할 수 있습니다.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="./data/local-election-turnout-municipal.csv" download>CSV 다운로드</a>
+            <a class="button secondary" href="./data/local-election-turnout-municipal.json" download>JSON 다운로드</a>
+            <a class="button ghost" href="https://www.data.go.kr/" target="_blank" rel="noreferrer">공공데이터포털</a>
+          </div>
+        </div>
+        <div class="hero-meta">
+          <div class="stat-card">
+            <span class="stat-label">커버리지</span>
+            <strong id="coverage-range">불러오는 중</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">지자체 수</span>
+            <strong id="coverage-municipalities">-</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">회차 수</span>
+            <strong id="coverage-rounds">-</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="panel filters">
+          <div class="panel-head">
+            <h2>필터</h2>
+            <button class="button text" id="reset-filters" type="button">초기화</button>
+          </div>
+          <div class="filter-grid">
+            <label>
+              <span>광역자치단체</span>
+              <select id="province-filter"></select>
+            </label>
+            <label>
+              <span>기초지자체</span>
+              <select id="municipality-filter"></select>
+            </label>
+            <label>
+              <span>회차</span>
+              <select id="round-filter"></select>
+            </label>
+            <label>
+              <span>검색</span>
+              <input id="search-filter" type="search" placeholder="예: 종로구, 수원시" />
+            </label>
+          </div>
+        </section>
+
+        <section class="panel kpis">
+          <div class="kpi-card">
+            <span>선택 평균 투표율</span>
+            <strong id="kpi-average">-</strong>
+          </div>
+          <div class="kpi-card">
+            <span>최고 투표율</span>
+            <strong id="kpi-max">-</strong>
+          </div>
+          <div class="kpi-card">
+            <span>최저 투표율</span>
+            <strong id="kpi-min">-</strong>
+          </div>
+          <div class="kpi-card">
+            <span>선택 레코드 수</span>
+            <strong id="kpi-count">-</strong>
+          </div>
+        </section>
+
+        <section class="panel chart-panel wide">
+          <div class="panel-head">
+            <h2>전국 가중 평균 투표율 추이</h2>
+            <p>선거인수 기준 가중 평균</p>
+          </div>
+          <div id="national-chart" class="chart"></div>
+        </section>
+
+        <section class="panel chart-panel wide">
+          <div class="panel-head">
+            <h2>선택 지자체 시계열</h2>
+            <p>지자체를 고르면 회차별 변화가 강조됩니다.</p>
+          </div>
+          <div id="municipality-chart" class="chart"></div>
+        </section>
+
+        <section class="panel chart-panel wide">
+          <div class="panel-head">
+            <h2>회차별 지자체 비교</h2>
+            <p>현재 선택 조건에 맞는 지자체 투표율을 높은 순으로 보여줍니다.</p>
+          </div>
+          <div id="ranking-chart" class="chart tall"></div>
+        </section>
+
+        <section class="panel table-panel wide">
+          <div class="panel-head">
+            <h2>상세 테이블</h2>
+            <p>열 제목을 기준으로 다운로드 데이터와 같은 내용을 확인할 수 있습니다.</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>회차</th>
+                  <th>선거일</th>
+                  <th>광역</th>
+                  <th>기초</th>
+                  <th>선거인수</th>
+                  <th>투표수</th>
+                  <th>무효표</th>
+                  <th>기권수</th>
+                  <th>투표율</th>
+                </tr>
+              </thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel sources-panel wide">
+          <div class="panel-head">
+            <h2>원천</h2>
+            <p>중앙선관위 자료실과 공공데이터포털 원문 링크</p>
+          </div>
+          <ul id="source-list" class="source-list"></ul>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script src="./assets/app.js" defer></script>
+  </body>
+  </html>
